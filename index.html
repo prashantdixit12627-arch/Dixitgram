@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101018"><title>Dixitgram</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101018;color:#fff;font:15px system-ui,Arial}
+header{position:sticky;top:0;background:#101018ee;border-bottom:1px solid #30303c;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+.logo{font-size:25px;font-weight:900;letter-spacing:-1px;background:linear-gradient(90deg,#ff477e,#9b69ff);background-clip:text;color:transparent}
+main{max-width:620px;margin:auto;padding:16px 12px 90px}.panel,.post{background:#1b1b27;border:1px solid #30303c;border-radius:16px;padding:16px;margin:12px 0}
+h2{font-size:20px;margin:4px 0 12px}label{display:block;font-size:13px;color:#d4d4df;margin:10px 0 5px}
+input,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #414151;background:#11111a;color:#fff;font:inherit;margin:4px 0 8px}
+textarea{min-height:65px}.btn{border:0;border-radius:10px;padding:12px 14px;font-weight:700;color:white;background:linear-gradient(90deg,#ff477e,#985cff);width:100%;margin:6px 0;cursor:pointer}
+.alt{background:#292938;border:1px solid #454557}.muted{color:#aaaabd;font-size:12px;line-height:1.5}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#171722;border-top:1px solid #30303c;display:flex;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom));z-index:3}
+.tabs button{background:none;border:0;color:#ddd;font-size:12px}.tabs b{display:block;font-size:20px}
+.hidden{display:none!important}.post{padding:0;overflow:hidden}.posthead{padding:12px;font-weight:700}.post video{width:100%;max-height:65vh;background:#000}.postfoot{padding:12px}.actions{display:flex;gap:14px}.actions button{background:none;color:#fff;border:0;font-size:15px;padding:5px 0}
+.comment{border-top:1px solid #333;padding:8px 0;font-size:13px}.msg{padding:10px;border-radius:9px;background:#30243a;color:#f6d6e3;margin:8px 0;font-size:13px;white-space:pre-wrap}
+.empty{text-align:center;color:#aaaabd;padding:36px 12px}.hidden{display:none}
+</style>
+</head>
+<body>
+<header><div class="logo">Dixitgram</div><button id="logout" class="alt hidden" style="width:auto;padding:8px 12px">Logout</button></header>
+<main>
+<section id="auth" class="panel">
+<h2 id="authTitle">Dixitgram में स्वागत है</h2>
+<p class="muted">वीडियो देखने और पोस्ट करने के लिए लॉगिन जरूरी है।</p>
+<label>Email</label><input id="email" type="email" autocomplete="email" placeholder="आपका ईमेल">
+<label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="कम-से-कम 8 अक्षर">
+<button id="emailAuth" class="btn">Email से Login</button>
+<button id="toggleSignup" class="btn alt">नया अकाउंट बनाएँ</button>
+<button id="google" class="btn alt">Google से जारी रखें</button>
+<hr style="border-color:#333">
+<label>मोबाइल नंबर (+91 सहित)</label><input id="phone" type="tel" placeholder="+91XXXXXXXXXX">
+<button id="sendOtp" class="btn alt">SMS OTP भेजें</button>
+<label>OTP</label><input id="otp" inputmode="numeric" maxlength="6" placeholder="6 अंकों का OTP">
+<button id="verifyOtp" class="btn alt">OTP सत्यापित करें</button>
+<div id="authMsg" class="msg hidden"></div>
+<p class="muted">OTP और Google Login तभी चलेंगे जब प्रोजेक्ट में ये सेवाएँ कॉन्फ़िगर हों। अपना पासवर्ड या OTP किसी से साझा न करें।</p>
+</section>
+<section id="app" class="hidden">
+<div id="feedPage"><h2>आपके लिए</h2><div id="feed" class="empty">अभी कोई वीडियो नहीं है।</div></div>
+<div id="uploadPage" class="hidden panel"><h2>वीडियो अपलोड करें</h2>
+<label>वीडियो चुनें</label><input id="videoFile" type="file" accept="video/*">
+<label>कैप्शन</label><textarea id="caption" maxlength="250" placeholder="वीडियो के बारे में लिखें"></textarea>
+<button id="upload" class="btn">वीडियो पोस्ट करें</button><p class="muted">केवल अपने बनाए हुए या पोस्ट करने की अनुमति वाले वीडियो डालें।</p></div>
+<div id="profilePage" class="hidden panel"><h2>तुम्हारी प्रोफाइल</h2><div id="profileEmail" class="muted"></div><p class="muted">तुम्हारी पोस्ट Feed में दिखाई देंगी।</p></div>
+<div id="appMsg" class="msg hidden"></div>
+</section>
+</main>
+<nav id="tabs" class="tabs hidden">
+<button data-page="feed"><b>⌂</b>Home</button><button data-page="upload"><b>＋</b>Upload</button><button data-page="profile"><b>♙</b>Profile</button>
+</nav>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// STEP 1: Supabase Dashboard > Project Settings > API में दिए गए values भरें.
+// केवल Project URL और publishable/anon key यहाँ लगाएँ. service_role key कभी न डालें.
+const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY';
+const configured = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') && !SUPABASE_ANON_KEY.includes('PASTE_');
+const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const $ = id => document.getElementById(id);
+let signingUp = false, currentUser = null;
+function say(id,msg){$(id).textContent=msg;$(id).classList.remove('hidden')}
+function clear(id){$(id).classList.add('hidden')}
+function showPage(p){
+ ['feed','upload','profile'].forEach(x=>$(x+'Page').classList.toggle('hidden',x!==p));
+ if(p==='feed') loadFeed();
+ if(p==='profile') $('profileEmail').textContent=currentUser?.email||'';
+}
+async function refresh(){
+ if(!supabase){$('auth').classList.remove('hidden');say('authMsg','पहले app.js में Supabase Project URL और publishable key सेट करें।');return}
+ const {data:{session}}=await supabase.auth.getSession();currentUser=session?.user||null;
+ $('auth').classList.toggle('hidden',!!currentUser);$('app').classList.toggle('hidden',!currentUser);
+ $('tabs').classList.toggle('hidden',!currentUser);$('logout').classList.toggle('hidden',!currentUser);
+ if(currentUser)loadFeed();
+}
+$('toggleSignup').onclick=()=>{signingUp=!signingUp;$('authTitle').textContent=signingUp?'नया Dixitgram अकाउंट':'Dixitgram में स्वागत है';$('emailAuth').textContent=signingUp?'Sign Up':'Email से Login';$('toggleSignup').textContent=signingUp?'Login पर वापस जाएँ':'नया अकाउंट बनाएँ'};
+$('emailAuth').onclick=async()=>{
+ if(!supabase){say('authMsg','पहले Supabase keys सेट करें।');return}
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||password.length<8){say('authMsg','सही Email और कम-से-कम 8 अक्षर का Password भरें।');return}
+ const result=signingUp?await supabase.auth.signUp({email,password}):await supabase.auth.signInWithPassword({email,password});
+ if(result.error)say('authMsg',result.error.message);else if(signingUp)say('authMsg','ईमेल में आया confirmation link खोलकर अकाउंट सत्यापित करें।');else refresh();
+};
+$('google').onclick=async()=>{if(!supabase){say('authMsg','पहले Supabase keys सेट करें।');return}const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href}});if(error)say('authMsg',error.message)};
+$('sendOtp').onclick=async()=>{if(!supabase){say('authMsg','पहले Supabase keys सेट करें।');return}const phone=$('phone').value.trim();if(!phone){say('authMsg','देश कोड सहित मोबाइल नंबर भरें।');return}const {error}=await supabase.auth.signInWithOtp({phone});if(error)say('authMsg',error.message);else say('authMsg','OTP भेजने की रिक्वेस्ट हो गई। SMS आने पर OTP भरें।')};
+$('verifyOtp').onclick=async()=>{if(!supabase){say('authMsg','पहले Supabase keys सेट करें।');return}const {error}=await supabase.auth.verifyOtp({phone:$('phone').value.trim(),token:$('otp').value.trim(),type:'sms'});if(error)say('authMsg',error.message);else refresh()};
+$('logout').onclick=async()=>{await supabase.auth.signOut();refresh()};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+async function loadFeed(){
+ if(!supabase||!currentUser)return;
+ const {data:rows,error}=await supabase.from('videos').select('id,user_id,caption,storage_path,created_at').order('created_at',{ascending:false}).limit(30);
+ const feed=$('feed');feed.replaceChildren();
+ if(error){feed.textContent='Feed लोड नहीं हुई: '+error.message;return}
+ if(!rows?.length){feed.textContent='अभी कोई वीडियो नहीं है। पहला वीडियो Upload करो।';return}
+ for(const row of rows){
+  const {data:file}=await supabase.storage.from('videos').createSignedUrl(row.storage_path,3600);
+  if(!file?.signedUrl)continue;
+  const card=document.createElement('article');card.className='post';
+  const head=document.createElement('div');head.className='posthead';head.textContent='Dixitgram सदस्य';
+  const video=document.createElement('video');video.src=file.signedUrl;video.controls=true;video.playsInline=true;
+  const foot=document.createElement('div');foot.className='postfoot';
+  const caption=document.createElement('div');caption.textContent=row.caption||'';
+  const actions=document.createElement('div');actions.className='actions';
+  const like=document.createElement('button');like.textContent='♡ Like';
+  like.onclick=async()=>{const {error}=await supabase.from('likes').upsert({video_id:row.id,user_id:currentUser.id},{onConflict:'video_id,user_id'});if(error)say('appMsg',error.message);else like.textContent='♥ Liked'};
+  const report=document.createElement('button');report.textContent='Report';report.onclick=async()=>{const reason=prompt('रिपोर्ट का कारण लिखें');if(!reason)return;const {error}=await supabase.from('reports').insert({video_id:row.id,reporter_id:currentUser.id,reason:reason.slice(0,300)});say('appMsg',error?'रिपोर्ट नहीं भेजी जा सकी।':'रिपोर्ट भेज दी गई। हमारी टीम इसकी समीक्षा करेगी।')};
+  actions.append(like,report);foot.append(caption,actions);
+  const commentBox=document.createElement('input');commentBox.placeholder='कमेंट लिखें…';commentBox.maxLength=300;
+  const commentBtn=document.createElement('button');commentBtn.className='btn alt';commentBtn.textContent='कमेंट भेजें';
+  const comments=document.createElement('div');
+  commentBtn.onclick=async()=>{const body=commentBox.value.trim();if(!body)return;const {error}=await supabase.from('comments').insert({video_id:row.id,user_id:currentUser.id,body});if(error)say('appMsg',error.message);else{commentBox.value='';loadComments(row.id,comments)}};
+  foot.append(commentBox,commentBtn,comments);card.append(head,video,foot);feed.append(card);loadComments(row.id,comments);
+ }
+}
+async function loadComments(id,target){
+ const {data,error}=await supabase.from('comments').select('body,created_at').eq('video_id',id).order('created_at').limit(20);
+ target.replaceChildren();if(error)return;
+ (data||[]).forEach(c=>{const d=document.createElement('div');d.className='comment';d.textContent=c.body;target.append(d)});
+}
+$('upload').onclick=async()=>{
+ const f=$('videoFile').files[0];if(!f){say('appMsg','पहले वीडियो चुनें।');return}
+ if(!f.type.startsWith('video/')){say('appMsg','सिर्फ वीडियो फाइल चुनें।');return}
+ if(f.size>50*1024*1024){say('appMsg','इस डेमो में 50 MB तक की वीडियो फाइल चुनें।');return}
+ const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_');const path=currentUser.id+'/'+crypto.randomUUID()+'-'+safe;
+ const {error:upErr}=await supabase.storage.from('videos').upload(path,f,{contentType:f.type,upsert:false});
+ if(upErr){say('appMsg','Upload में समस्या: '+upErr.message);return}
+ const {error:dbErr}=await supabase.from('videos').insert({user_id:currentUser.id,caption:$('caption').value.trim(),storage_path:path});
+ if(dbErr){say('appMsg','पोस्ट सेव नहीं हुई: '+dbErr.message);return}
+ $('videoFile').value='';$('caption').value='';say('appMsg','वीडियो पोस्ट हो गया।');showPage('feed');
+};
+supabase?.auth.onAuthStateChange(()=>setTimeout(refresh,0));
+refresh();
+</script>
+</body></html>
