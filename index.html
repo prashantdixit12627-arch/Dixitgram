@@ -56,7 +56,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // STEP 1: Supabase Dashboard > Project Settings > API में दिए गए valueshttps://vulsmzhtxeapnkljwgwc.supabase.co भsb_publishable_QBqb-WQ3aneK0uX4Zp9C6A_5q15IcLVरें.
 // केवल Project URL और publishable/anon  यहाँ लगाsb_publishable_QBqb-WQ3aneK0uX4Zp9C6A_5q15IcLVएँ. service_role key कभी न डालेंvulsmzhtxeapnkljwgwc.
-const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_URL = 'PASTE_YOUR_SUPhttps://vulsmzhtxeapnkljwgwc.supabase.coABASE_PROJECT_URL';
 const SUPABASE_ANON_KEY = 'PASTE_YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY';
 const configured = SUPABASE_URL.startsWith('https://') && !SUPABASE_URL.includes('PASTE_') && !SUPABASE_ANON_KEY.includes('PASTE_');
 const supabase = configured ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
